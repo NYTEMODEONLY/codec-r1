@@ -1,0 +1,20 @@
+{
+  "name": "codec-walkie-talkie",
+  "version": "1.0.0",
+  "description": "Metal Gear CODEC-style walkie-talkie for rabbit r1",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'Static files ready'",
+    "start": "vercel dev"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
+    "@upstash/redis": "^1.36.1",
+    "uuid": "^9.0.1",
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "vercel": "^33.0.0"
+  }
+}

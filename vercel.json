@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    { "src": "/api/init-db", "dest": "/api/init-db.js" },
+    { "src": "/api/register", "dest": "/api/register.js" },
+    { "src": "/api/status", "dest": "/api/status.js" },
+    { "src": "/api/call", "dest": "/api/call.js" },
+    { "src": "/api/answer", "dest": "/api/answer.js" },
+    { "src": "/api/endcall", "dest": "/api/endcall.js" },
+    { "src": "/api/lookup", "dest": "/api/lookup.js" },
+    { "src": "/api/audio", "dest": "/api/audio.js" },
+    { "src": "/api/signal", "dest": "/api/signal.js" },
+    { "src": "/api/avatar", "dest": "/api/avatar.js" },
+    { "src": "/qr", "dest": "/public/qr.html" },
+    { "src": "^/$", "dest": "/public/index.html" },
+    { "src": "/(.*)", "dest": "/public/$1" }
+  ]
+}

@@ -1,0 +1,2056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=240, height=282, user-scalable=no">
+  <title>CODEC</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --codec-dark: #0a0f0a;
+      --codec-darker: #050805;
+      --codec-green: #00ff41;
+      --codec-green-dim: #00aa2a;
+      --codec-green-glow: #3bcb86;
+      --codec-teal: #274851;
+      --codec-teal-light: #3d7f7d;
+      --codec-highlight: #d3e9e6;
+      --codec-scanline: rgba(0, 255, 65, 0.03);
+    }
+
+    @font-face {
+      font-family: 'Codec';
+      src: local('Courier New'), local('monospace');
+    }
+
+    body {
+      width: 240px;
+      height: 282px;
+      overflow: hidden;
+      background: var(--codec-darker);
+      font-family: 'Courier New', monospace;
+      color: var(--codec-green);
+      position: relative;
+    }
+
+    /* CRT Scanlines */
+    body::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        var(--codec-scanline) 2px,
+        var(--codec-scanline) 4px
+      );
+      pointer-events: none;
+      z-index: 1000;
+      animation: flicker 0.15s infinite;
+    }
+
+    @keyframes flicker {
+      0%, 100% { opacity: 0.97; }
+      50% { opacity: 1; }
+    }
+
+    /* Screen glow effect */
+    body::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      box-shadow: inset 0 0 60px rgba(0, 255, 65, 0.1);
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    /* Main container */
+    .codec-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 4px;
+      position: relative;
+    }
+
+    /* Header */
+    .codec-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 2px 4px;
+      border-bottom: 1px solid var(--codec-green-dim);
+      margin-bottom: 4px;
+    }
+
+    .codec-title {
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-shadow: 0 0 10px var(--codec-green-glow);
+    }
+
+    .codec-freq {
+      font-size: 8px;
+      color: var(--codec-green-dim);
+    }
+
+    /* Screens */
+    .screen {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    /* Call screen - main interface */
+    .call-screen {
+      justify-content: center;
+      align-items: center;
+    }
+
+    .codec-number-display {
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-shadow: 0 0 20px var(--codec-green-glow);
+      margin-bottom: 4px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .status-text {
+      font-size: 8px;
+      color: var(--codec-green-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Portrait frame - MGS style */
+    .portrait-frame {
+      width: 60px;
+      height: 60px;
+      border: 2px solid var(--codec-green);
+      margin: 4px auto;
+      position: relative;
+      background: var(--codec-dark);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .portrait-frame::before {
+      content: '';
+      position: absolute;
+      top: -3px;
+      left: -3px;
+      right: -3px;
+      bottom: -3px;
+      border: 1px solid var(--codec-green-dim);
+    }
+
+    .portrait-icon {
+      font-size: 28px;
+      opacity: 0.5;
+    }
+
+    .portrait-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: sepia(100%) hue-rotate(70deg) saturate(200%) brightness(0.8);
+    }
+
+    /* Camera capture screen */
+    .camera-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--codec-darker);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 8px;
+    }
+
+    .camera-overlay.active {
+      display: flex;
+    }
+
+    .camera-title {
+      font-size: 10px;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+    }
+
+    .camera-preview {
+      width: 140px;
+      height: 140px;
+      border: 2px solid var(--codec-green);
+      background: var(--codec-dark);
+      overflow: hidden;
+      position: relative;
+    }
+
+    .camera-preview video {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      min-width: 100%;
+      min-height: 100%;
+      width: auto;
+      height: auto;
+      transform: translate(-50%, -50%);
+      filter: sepia(100%) hue-rotate(70deg) saturate(200%) brightness(0.8);
+    }
+
+    .camera-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: sepia(100%) hue-rotate(70deg) saturate(200%) brightness(0.8);
+    }
+
+    .camera-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .camera-btn {
+      padding: 8px 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border: 2px solid var(--codec-green);
+      background: transparent;
+      color: var(--codec-green);
+      cursor: pointer;
+    }
+
+    .camera-btn:hover {
+      background: var(--codec-green);
+      color: var(--codec-dark);
+    }
+
+    .camera-btn.cancel {
+      border-color: #ff4444;
+      color: #ff4444;
+    }
+
+    .camera-btn.cancel:hover {
+      background: #ff4444;
+      color: var(--codec-dark);
+    }
+
+    /* Set avatar button on menu */
+    .set-avatar-btn {
+      padding: 6px 10px;
+      font-family: 'Courier New', monospace;
+      font-size: 8px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border: 1px solid var(--codec-green-dim);
+      background: transparent;
+      color: var(--codec-green-dim);
+      cursor: pointer;
+      margin-top: 4px;
+    }
+
+    .set-avatar-btn:hover {
+      border-color: var(--codec-green);
+      color: var(--codec-green);
+    }
+
+    /* Mini avatar in connection list */
+    .connection-avatar {
+      width: 20px;
+      height: 20px;
+      border: 1px solid var(--codec-green-dim);
+      margin-right: 6px;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .connection-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      filter: sepia(100%) hue-rotate(70deg) saturate(200%) brightness(0.8);
+    }
+
+    .connection-avatar-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      color: var(--codec-green-dim);
+    }
+
+    /* Connection list */
+    .connection-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px;
+    }
+
+    .connection-item {
+      display: flex;
+      align-items: center;
+      padding: 6px 4px;
+      border: 1px solid transparent;
+      margin-bottom: 2px;
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .connection-item:hover,
+    .connection-item.selected {
+      border-color: var(--codec-green);
+      background: rgba(0, 255, 65, 0.1);
+    }
+
+    .connection-item.online .status-dot {
+      background: var(--codec-green);
+      box-shadow: 0 0 6px var(--codec-green-glow);
+    }
+
+    .connection-item.offline .status-dot {
+      background: var(--codec-green-dim);
+      opacity: 0.3;
+    }
+
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      margin-right: 6px;
+    }
+
+    .connection-number {
+      font-size: 12px;
+      font-weight: bold;
+      letter-spacing: 1px;
+    }
+
+    .connection-status {
+      font-size: 7px;
+      margin-left: auto;
+      color: var(--codec-green-dim);
+    }
+
+    /* Active call screen */
+    .active-call {
+      align-items: center;
+      padding: 4px;
+      justify-content: flex-start;
+      padding-top: 8px;
+    }
+
+    .calling-text {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    .waveform {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 24px;
+      gap: 2px;
+      margin: 6px 0;
+    }
+
+    .wave-bar {
+      width: 3px;
+      background: var(--codec-green);
+      animation: wave 0.5s ease-in-out infinite;
+      box-shadow: 0 0 4px var(--codec-green-glow);
+    }
+
+    .wave-bar:nth-child(1) { animation-delay: 0s; height: 6px; }
+    .wave-bar:nth-child(2) { animation-delay: 0.1s; height: 12px; }
+    .wave-bar:nth-child(3) { animation-delay: 0.2s; height: 18px; }
+    .wave-bar:nth-child(4) { animation-delay: 0.3s; height: 12px; }
+    .wave-bar:nth-child(5) { animation-delay: 0.4s; height: 6px; }
+    .wave-bar:nth-child(6) { animation-delay: 0.1s; height: 15px; }
+    .wave-bar:nth-child(7) { animation-delay: 0.2s; height: 9px; }
+
+    @keyframes wave {
+      0%, 100% { transform: scaleY(1); }
+      50% { transform: scaleY(0.3); }
+    }
+
+    .waveform.inactive .wave-bar {
+      animation: none;
+      height: 4px !important;
+      opacity: 0.3;
+    }
+
+    .ptt-indicator {
+      font-size: 8px;
+      padding: 4px 8px;
+      border: 1px solid var(--codec-green);
+      margin-top: 8px;
+    }
+
+    .ptt-indicator.active {
+      background: var(--codec-green);
+      color: var(--codec-dark);
+      animation: none;
+    }
+
+    /* Call screen buttons */
+    .call-buttons {
+      display: flex;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .transmit-btn {
+      padding: 8px 14px;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border: 2px solid var(--codec-green);
+      background: transparent;
+      color: var(--codec-green);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    .transmit-btn:active,
+    .transmit-btn.active {
+      background: var(--codec-green);
+      color: var(--codec-dark);
+      box-shadow: 0 0 15px var(--codec-green-glow);
+    }
+
+    .endcall-btn {
+      padding: 8px 12px;
+      font-family: 'Courier New', monospace;
+      font-size: 9px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border: 2px solid #ff4444;
+      background: transparent;
+      color: #ff4444;
+      cursor: pointer;
+    }
+
+    .endcall-btn:hover {
+      background: #ff4444;
+      color: var(--codec-dark);
+    }
+
+    /* Footer / controls hint */
+    .codec-footer {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px;
+      font-size: 6px;
+      color: var(--codec-green-dim);
+      border-top: 1px solid var(--codec-green-dim);
+      margin-top: 4px;
+    }
+
+    /* Registration screen */
+    .register-screen {
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 12px;
+    }
+
+    .register-title {
+      font-size: 10px;
+      margin-bottom: 8px;
+      letter-spacing: 1px;
+    }
+
+    .assigned-number {
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 4px;
+      text-shadow: 0 0 20px var(--codec-green-glow);
+      margin: 12px 0;
+      padding: 8px;
+      border: 2px solid var(--codec-green);
+    }
+
+    .register-info {
+      font-size: 7px;
+      color: var(--codec-green-dim);
+      line-height: 1.4;
+      margin-top: 8px;
+    }
+
+    /* Input for calling */
+    .call-input-container {
+      margin: 8px 0;
+      text-align: center;
+    }
+
+    .call-input {
+      font-size: 16px;
+      letter-spacing: 2px;
+      color: var(--codec-green);
+      text-align: center;
+      padding: 4px 8px;
+      border: 1px solid var(--codec-green-dim);
+      background: transparent;
+      width: 100px;
+    }
+
+    /* Incoming call overlay */
+    .incoming-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--codec-darker);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+
+    .incoming-overlay.active {
+      display: flex;
+    }
+
+    .incoming-text {
+      font-size: 10px;
+      letter-spacing: 2px;
+      animation: blink 0.5s infinite;
+      margin-bottom: 8px;
+    }
+
+    .incoming-number {
+      font-size: 20px;
+      font-weight: bold;
+      letter-spacing: 3px;
+      text-shadow: 0 0 15px var(--codec-green-glow);
+    }
+
+    .incoming-hint {
+      font-size: 7px;
+      margin-top: 8px;
+      color: var(--codec-green-dim);
+    }
+
+    .incoming-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    .answer-btn, .decline-btn {
+      padding: 8px 16px;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      border: 2px solid var(--codec-green);
+      background: transparent;
+      color: var(--codec-green);
+      cursor: pointer;
+      transition: all 0.1s;
+    }
+
+    .answer-btn:hover {
+      background: var(--codec-green);
+      color: var(--codec-dark);
+    }
+
+    .decline-btn {
+      border-color: #ff4444;
+      color: #ff4444;
+    }
+
+    .decline-btn:hover {
+      background: #ff4444;
+      color: var(--codec-dark);
+    }
+
+    /* Loading animation */
+    .loading {
+      display: flex;
+      gap: 4px;
+      margin: 8px 0;
+    }
+
+    .loading-dot {
+      width: 4px;
+      height: 4px;
+      background: var(--codec-green);
+      animation: loadingPulse 1s ease-in-out infinite;
+    }
+
+    .loading-dot:nth-child(2) { animation-delay: 0.2s; }
+    .loading-dot:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes loadingPulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 1; }
+    }
+
+    /* Error messages */
+    .error-text {
+      font-size: 8px;
+      color: #ff4444;
+      text-shadow: 0 0 5px #ff4444;
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="codec-container">
+    <!-- Header -->
+    <div class="codec-header">
+      <span class="codec-title">CODEC</span>
+      <span class="codec-freq" id="myFreq">----.--</span>
+    </div>
+
+    <!-- Registration Screen (first time) -->
+    <div class="screen register-screen" id="registerScreen">
+      <div class="register-title">INITIALIZING CODEC...</div>
+      <div class="loading">
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+        <div class="loading-dot"></div>
+      </div>
+      <div class="assigned-number" id="assignedNumber" style="display:none;">----.--</div>
+      <div class="register-info" id="registerInfo">
+        Connecting to network...<br>
+        Please stand by.
+      </div>
+    </div>
+
+    <!-- Main Menu / Connection List -->
+    <div class="screen" id="menuScreen">
+      <div class="status-text" style="padding: 4px; text-align: center;">
+        ACTIVE FREQUENCIES
+      </div>
+      <div class="connection-list" id="connectionList">
+        <!-- Connections populated dynamically -->
+        <div style="text-align: center; padding: 20px; font-size: 8px; color: var(--codec-green-dim);">
+          No active connections.<br>
+          Scroll to refresh.
+        </div>
+      </div>
+      <div class="call-input-container">
+        <input type="text" class="call-input" id="callInput" placeholder="####.##" maxlength="7">
+        <button class="set-avatar-btn" id="setAvatarBtn">SET AVATAR</button>
+      </div>
+    </div>
+
+    <!-- Active Call Screen -->
+    <div class="screen active-call" id="callScreen">
+      <div class="portrait-frame" id="callPortrait">
+        <div class="portrait-icon">?</div>
+      </div>
+      <div class="calling-text" id="callStatus">CONNECTING...</div>
+      <div class="codec-number-display" id="remoteNumber">----.--</div>
+      <div class="waveform inactive" id="waveform">
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+        <div class="wave-bar"></div>
+      </div>
+      <div class="call-buttons">
+        <button class="transmit-btn" id="transmitBtn">HOLD TO TALK</button>
+        <button class="endcall-btn" id="endCallBtn">END</button>
+      </div>
+    </div>
+
+    <!-- Incoming Call Overlay -->
+    <div class="incoming-overlay" id="incomingOverlay">
+      <div class="incoming-text">INCOMING TRANSMISSION</div>
+      <div class="portrait-frame" id="incomingPortrait">
+        <div class="portrait-icon">?</div>
+      </div>
+      <div class="incoming-number" id="incomingNumber">----.--</div>
+      <div class="incoming-buttons">
+        <button class="answer-btn" id="answerBtn">ANSWER</button>
+        <button class="decline-btn" id="declineBtn">DECLINE</button>
+      </div>
+      <div class="incoming-hint">or use PTT/SCROLL</div>
+    </div>
+
+    <!-- Camera Capture Overlay -->
+    <div class="camera-overlay" id="cameraOverlay">
+      <div class="camera-title">SET AVATAR</div>
+      <div class="camera-preview" id="cameraPreview">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+      </div>
+      <div class="camera-buttons">
+        <button class="camera-btn" id="captureBtn">CAPTURE</button>
+        <button class="camera-btn cancel" id="cancelCameraBtn">CANCEL</button>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="codec-footer">
+      <span>SCROLL: NAV</span>
+      <span>BUILT BY NYTEMODE</span>
+    </div>
+  </div>
+
+  <script>
+    // CODEC App - Metal Gear Style Walkie-Talkie for rabbit r1
+
+    const BACKEND_URL = window.location.origin;
+    const STORAGE_KEY = 'codec_device_id';
+
+    // App state
+    let state = {
+      deviceId: null,
+      codecNumber: null,
+      currentScreen: 'register',
+      connections: [],
+      selectedIndex: 0,
+      inCall: false,
+      callPartner: null,
+      isPTTActive: false,
+      isTransmitting: false,
+      incomingCall: null,
+      mediaRecorder: null,
+      audioContext: null,
+      ws: null,
+      // WebRTC state
+      peerConnection: null,
+      localStream: null,
+      remoteAudio: null,
+      isCaller: false,
+      // Avatar state
+      myAvatar: null,
+      cameraStream: null
+    };
+
+    // DOM elements
+    const screens = {
+      register: document.getElementById('registerScreen'),
+      menu: document.getElementById('menuScreen'),
+      call: document.getElementById('callScreen')
+    };
+
+    const elements = {
+      myFreq: document.getElementById('myFreq'),
+      assignedNumber: document.getElementById('assignedNumber'),
+      registerInfo: document.getElementById('registerInfo'),
+      connectionList: document.getElementById('connectionList'),
+      callInput: document.getElementById('callInput'),
+      callStatus: document.getElementById('callStatus'),
+      remoteNumber: document.getElementById('remoteNumber'),
+      waveform: document.getElementById('waveform'),
+      pttIndicator: document.getElementById('pttIndicator'),
+      incomingOverlay: document.getElementById('incomingOverlay'),
+      incomingNumber: document.getElementById('incomingNumber')
+    };
+
+    // Show screen
+    function showScreen(name) {
+      Object.values(screens).forEach(s => s.classList.remove('active'));
+      screens[name].classList.add('active');
+      state.currentScreen = name;
+    }
+
+    // Generate codec number format (####.##)
+    function formatCodecNumber(id) {
+      // Convert device ID to a 6-digit number
+      const hash = id.split('').reduce((acc, char) => {
+        return ((acc << 5) - acc) + char.charCodeAt(0);
+      }, 0);
+      const num = Math.abs(hash) % 1000000;
+      const formatted = num.toString().padStart(6, '0');
+      return formatted.slice(0, 4) + '.' + formatted.slice(4);
+    }
+
+    // Storage functions using r1 creations API
+    async function loadDeviceId() {
+      try {
+        if (window.creationStorage && window.creationStorage.plain) {
+          const stored = await window.creationStorage.plain.getItem(STORAGE_KEY);
+          if (stored) {
+            return JSON.parse(atob(stored));
+          }
+        }
+      } catch (e) {
+        console.error('Storage load error:', e);
+      }
+      // Fallback to localStorage for testing
+      return localStorage.getItem(STORAGE_KEY);
+    }
+
+    async function saveDeviceId(id) {
+      try {
+        if (window.creationStorage && window.creationStorage.plain) {
+          await window.creationStorage.plain.setItem(STORAGE_KEY, btoa(JSON.stringify(id)));
+        }
+      } catch (e) {
+        console.error('Storage save error:', e);
+      }
+      // Fallback to localStorage
+      localStorage.setItem(STORAGE_KEY, id);
+    }
+
+    // Generate unique device ID
+    function generateDeviceId() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      let id = '';
+      for (let i = 0; i < 16; i++) {
+        id += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return id;
+    }
+
+    // Initialize device
+    async function initDevice() {
+      let deviceId = await loadDeviceId();
+
+      if (!deviceId) {
+        // First time - generate new ID
+        deviceId = generateDeviceId();
+        await saveDeviceId(deviceId);
+
+        // Show registration animation
+        setTimeout(() => {
+          const codecNumber = formatCodecNumber(deviceId);
+          elements.assignedNumber.textContent = codecNumber;
+          elements.assignedNumber.style.display = 'block';
+          elements.registerInfo.innerHTML =
+            'YOUR CODEC FREQUENCY<br>' +
+            'ASSIGNED PERMANENTLY<br><br>' +
+            'Press PTT to continue';
+
+          state.deviceId = deviceId;
+          state.codecNumber = codecNumber;
+          elements.myFreq.textContent = codecNumber;
+        }, 2000);
+      } else {
+        // Returning user
+        state.deviceId = deviceId;
+        state.codecNumber = formatCodecNumber(deviceId);
+        elements.myFreq.textContent = state.codecNumber;
+
+        elements.registerInfo.textContent = 'CODEC READY';
+        elements.assignedNumber.textContent = state.codecNumber;
+        elements.assignedNumber.style.display = 'block';
+
+        setTimeout(() => {
+          connectToServer();
+          showScreen('menu');
+        }, 1000);
+      }
+    }
+
+    // WebSocket connection
+    function connectToServer() {
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const wsUrl = `${wsProtocol}//${window.location.host}/api/ws`;
+
+      // Use polling fallback since Vercel doesn't support WebSockets
+      // We'll use Server-Sent Events or polling instead
+      pollServer();
+    }
+
+    // Polling for serverless environment
+    let pollInterval = null;
+    let signalPollInterval = null;
+
+    async function pollServer() {
+      try {
+        // Include codecNumber so server can re-register on cold start
+        const params = new URLSearchParams({
+          deviceId: state.deviceId,
+          codecNumber: state.codecNumber
+        });
+        const response = await fetch(`${BACKEND_URL}/api/status?${params}`);
+        const data = await response.json();
+
+        if (data.connections) {
+          updateConnections(data.connections);
+        }
+
+        if (data.incomingCall && !state.inCall && !state.incomingCall) {
+          handleIncomingCall(data.incomingCall);
+        }
+
+        if (data.callAccepted && state.inCall && state.isCaller) {
+          // Call was accepted, now set up WebRTC as caller
+          elements.callStatus.textContent = 'ESTABLISHING...';
+          setupWebRTCCaller();
+        }
+
+        // Check if our call was declined
+        if (data.callDeclined && state.inCall && state.isCaller) {
+          console.log('Call was declined');
+          endCall(false, true); // Don't notify partner, but play sound
+        }
+
+      } catch (e) {
+        console.error('Poll error:', e);
+      }
+
+      // Poll every 2 seconds
+      pollInterval = setTimeout(pollServer, 2000);
+    }
+
+    // WebRTC Configuration
+    const rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    };
+
+    // Create remote audio element
+    function createRemoteAudio() {
+      if (!state.remoteAudio) {
+        state.remoteAudio = new Audio();
+        state.remoteAudio.autoplay = true;
+        document.body.appendChild(state.remoteAudio);
+      }
+    }
+
+    // Set call as connected - called from multiple places for reliability
+    let connectionCheckInterval = null;
+
+    function setCallConnected() {
+      if (elements.callStatus.textContent !== 'CONNECTED') {
+        console.log('Call connected!');
+        // Stop ringing and play connect sound
+        stopRinging();
+        playCodecConnect();
+        elements.callStatus.textContent = 'CONNECTED';
+        elements.callStatus.classList.remove('calling-text');
+        // Clear fallback check
+        if (connectionCheckInterval) {
+          clearInterval(connectionCheckInterval);
+          connectionCheckInterval = null;
+        }
+      }
+    }
+
+    // Fallback connection check - if we have audio flowing, we're connected
+    function startConnectionFallbackCheck() {
+      if (connectionCheckInterval) return;
+
+      connectionCheckInterval = setInterval(() => {
+        // Check if we have a remote stream with audio
+        if (state.remoteAudio && state.remoteAudio.srcObject) {
+          const tracks = state.remoteAudio.srcObject.getAudioTracks();
+          if (tracks.length > 0 && tracks[0].readyState === 'live') {
+            console.log('Fallback: detected live audio track, marking connected');
+            setCallConnected();
+          }
+        }
+        // Also check peer connection state directly
+        if (state.peerConnection) {
+          const iceState = state.peerConnection.iceConnectionState;
+          const connState = state.peerConnection.connectionState;
+          console.log('Fallback check - ICE:', iceState, 'Conn:', connState);
+          if (iceState === 'connected' || iceState === 'completed' || connState === 'connected') {
+            setCallConnected();
+          }
+        }
+      }, 1000);
+    }
+
+    // Audio level detection for waveform visualization
+    let audioAnalyser = null;
+    let audioLevelInterval = null;
+
+    function setupAudioLevelDetection(stream) {
+      try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        const source = audioContext.createMediaStreamSource(stream);
+        audioAnalyser = audioContext.createAnalyser();
+        audioAnalyser.fftSize = 256;
+        source.connect(audioAnalyser);
+
+        const dataArray = new Uint8Array(audioAnalyser.frequencyBinCount);
+
+        audioLevelInterval = setInterval(() => {
+          if (!state.inCall || state.isTransmitting) return;
+
+          audioAnalyser.getByteFrequencyData(dataArray);
+          const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+
+          if (average > 10) { // Threshold for detecting speech
+            elements.waveform.classList.remove('inactive');
+          } else {
+            elements.waveform.classList.add('inactive');
+          }
+        }, 100);
+      } catch (e) {
+        console.error('Audio level detection error:', e);
+      }
+    }
+
+    // Setup WebRTC as the caller (person initiating the call)
+    async function setupWebRTCCaller() {
+      if (state.peerConnection) return; // Already setup
+
+      try {
+        createRemoteAudio();
+
+        // Get local audio stream
+        state.localStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: false
+        });
+
+        // Create peer connection
+        state.peerConnection = new RTCPeerConnection(rtcConfig);
+
+        // Add local audio track (muted initially - unmute when transmitting)
+        state.localStream.getAudioTracks().forEach(track => {
+          track.enabled = false; // Muted until PTT
+          state.peerConnection.addTrack(track, state.localStream);
+        });
+
+        // Handle remote stream
+        state.peerConnection.ontrack = (event) => {
+          console.log('Caller received remote track');
+          state.remoteAudio.srcObject = event.streams[0];
+          setCallConnected();
+          setupAudioLevelDetection(event.streams[0]);
+        };
+
+        // Handle ICE candidates
+        state.peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            sendSignal('ice-candidate', event.candidate);
+          }
+        };
+
+        // Connection state (most reliable)
+        state.peerConnection.onconnectionstatechange = () => {
+          console.log('Caller connection state:', state.peerConnection.connectionState);
+          if (state.peerConnection.connectionState === 'connected') {
+            setCallConnected();
+          } else if (state.peerConnection.connectionState === 'disconnected' ||
+                     state.peerConnection.connectionState === 'failed' ||
+                     state.peerConnection.connectionState === 'closed') {
+            endCall(false);
+          }
+        };
+
+        state.peerConnection.oniceconnectionstatechange = () => {
+          console.log('Caller ICE state:', state.peerConnection.iceConnectionState);
+          if (state.peerConnection.iceConnectionState === 'connected' ||
+              state.peerConnection.iceConnectionState === 'completed') {
+            setCallConnected();
+          } else if (state.peerConnection.iceConnectionState === 'disconnected' ||
+                     state.peerConnection.iceConnectionState === 'failed') {
+            endCall(false);
+          }
+        };
+
+        // Create and send offer
+        const offer = await state.peerConnection.createOffer();
+        await state.peerConnection.setLocalDescription(offer);
+        sendSignal('offer', offer);
+
+        // Start polling for signaling messages
+        startSignalPolling();
+
+        // Start fallback connection check
+        startConnectionFallbackCheck();
+
+      } catch (e) {
+        console.error('WebRTC setup error:', e);
+        elements.callStatus.textContent = 'MIC ERROR';
+      }
+    }
+
+    // Setup WebRTC as the answerer (person receiving the call)
+    async function setupWebRTCAnswerer(offer) {
+      if (state.peerConnection) return; // Already setup
+
+      try {
+        createRemoteAudio();
+
+        // Get local audio stream
+        state.localStream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
+          video: false
+        });
+
+        // Create peer connection
+        state.peerConnection = new RTCPeerConnection(rtcConfig);
+
+        // Add local audio track (muted initially)
+        state.localStream.getAudioTracks().forEach(track => {
+          track.enabled = false; // Muted until PTT
+          state.peerConnection.addTrack(track, state.localStream);
+        });
+
+        // Handle remote stream
+        state.peerConnection.ontrack = (event) => {
+          console.log('Answerer received remote track');
+          state.remoteAudio.srcObject = event.streams[0];
+          setCallConnected();
+          setupAudioLevelDetection(event.streams[0]);
+        };
+
+        // Handle ICE candidates
+        state.peerConnection.onicecandidate = (event) => {
+          if (event.candidate) {
+            sendSignal('ice-candidate', event.candidate);
+          }
+        };
+
+        // Connection state (most reliable)
+        state.peerConnection.onconnectionstatechange = () => {
+          console.log('Answerer connection state:', state.peerConnection.connectionState);
+          if (state.peerConnection.connectionState === 'connected') {
+            setCallConnected();
+          } else if (state.peerConnection.connectionState === 'disconnected' ||
+                     state.peerConnection.connectionState === 'failed' ||
+                     state.peerConnection.connectionState === 'closed') {
+            endCall(false);
+          }
+        };
+
+        state.peerConnection.oniceconnectionstatechange = () => {
+          console.log('Answerer ICE state:', state.peerConnection.iceConnectionState);
+          if (state.peerConnection.iceConnectionState === 'connected' ||
+              state.peerConnection.iceConnectionState === 'completed') {
+            setCallConnected();
+          } else if (state.peerConnection.iceConnectionState === 'disconnected' ||
+                     state.peerConnection.iceConnectionState === 'failed') {
+            endCall(false);
+          }
+        };
+
+        // Set remote description (the offer)
+        await state.peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+        // Create and send answer
+        const answer = await state.peerConnection.createAnswer();
+        await state.peerConnection.setLocalDescription(answer);
+        sendSignal('answer', answer);
+
+        // Start fallback connection check
+        startConnectionFallbackCheck();
+
+      } catch (e) {
+        console.error('WebRTC answerer setup error:', e);
+        elements.callStatus.textContent = 'MIC ERROR';
+      }
+    }
+
+    // Send signaling data to server
+    async function sendSignal(type, data) {
+      if (!state.callPartner) return;
+
+      try {
+        await fetch(`${BACKEND_URL}/api/signal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fromId: state.deviceId,
+            toId: state.callPartner.id,
+            type: type,
+            data: data
+          })
+        });
+      } catch (e) {
+        console.error('Send signal error:', e);
+      }
+    }
+
+    // Poll for signaling messages
+    function startSignalPolling() {
+      if (signalPollInterval) return;
+      pollSignals();
+    }
+
+    async function pollSignals() {
+      if (!state.inCall) {
+        signalPollInterval = null;
+        return;
+      }
+
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/signal?deviceId=${state.deviceId}`);
+        const data = await response.json();
+
+        if (data.signals && data.signals.length > 0) {
+          for (const signal of data.signals) {
+            await handleSignal(signal);
+          }
+        }
+      } catch (e) {
+        console.error('Signal poll error:', e);
+      }
+
+      // Poll every 500ms for responsive signaling
+      signalPollInterval = setTimeout(pollSignals, 500);
+    }
+
+    // Handle incoming signaling messages
+    async function handleSignal(signal) {
+      // Handle call-ended signal
+      if (signal.type === 'call-ended') {
+        console.log('Remote party ended the call');
+        endCall(false); // Don't notify back, they already know
+        return;
+      }
+
+      if (!state.peerConnection && signal.type === 'offer') {
+        // We received an offer but haven't set up yet
+        console.log('Received offer, setting up as answerer');
+        await setupWebRTCAnswerer(signal.data);
+        return;
+      }
+
+      if (!state.peerConnection) {
+        console.log('No peer connection, ignoring signal:', signal.type);
+        return;
+      }
+
+      try {
+        if (signal.type === 'offer') {
+          // Renegotiation - shouldn't happen often
+          console.log('Received renegotiation offer');
+          await state.peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
+          const answer = await state.peerConnection.createAnswer();
+          await state.peerConnection.setLocalDescription(answer);
+          sendSignal('answer', answer);
+
+        } else if (signal.type === 'answer') {
+          console.log('Received answer from remote');
+          await state.peerConnection.setRemoteDescription(new RTCSessionDescription(signal.data));
+          // Connection should establish after this - status will update via onconnectionstatechange
+
+        } else if (signal.type === 'ice-candidate') {
+          console.log('Received ICE candidate');
+          await state.peerConnection.addIceCandidate(new RTCIceCandidate(signal.data));
+        }
+      } catch (e) {
+        console.error('Handle signal error:', e);
+      }
+    }
+
+    // Cleanup WebRTC
+    function cleanupWebRTC() {
+      if (signalPollInterval) {
+        clearTimeout(signalPollInterval);
+        signalPollInterval = null;
+      }
+
+      if (audioLevelInterval) {
+        clearInterval(audioLevelInterval);
+        audioLevelInterval = null;
+      }
+
+      if (connectionCheckInterval) {
+        clearInterval(connectionCheckInterval);
+        connectionCheckInterval = null;
+      }
+
+      if (state.localStream) {
+        state.localStream.getTracks().forEach(track => track.stop());
+        state.localStream = null;
+      }
+
+      if (state.peerConnection) {
+        state.peerConnection.close();
+        state.peerConnection = null;
+      }
+
+      if (state.remoteAudio) {
+        state.remoteAudio.srcObject = null;
+      }
+
+      state.isCaller = false;
+    }
+
+    // Update connections list
+    function updateConnections(connections) {
+      state.connections = connections.filter(c => c.id !== state.deviceId);
+      renderConnections();
+    }
+
+    function renderConnections() {
+      if (state.connections.length === 0) {
+        elements.connectionList.innerHTML = `
+          <div style="text-align: center; padding: 20px; font-size: 8px; color: var(--codec-green-dim);">
+            No active connections.<br>
+            Scroll to refresh.
+          </div>
+        `;
+        return;
+      }
+
+      elements.connectionList.innerHTML = state.connections.map((conn, i) => `
+        <div class="connection-item ${conn.online ? 'online' : 'offline'} ${i === state.selectedIndex ? 'selected' : ''}"
+             data-index="${i}" data-id="${conn.id}" data-number="${conn.codecNumber}" data-avatar="${conn.avatar || ''}">
+          <div class="connection-avatar">
+            ${conn.avatar
+              ? `<img src="${conn.avatar}" alt="">`
+              : '<div class="connection-avatar-placeholder">?</div>'}
+          </div>
+          <span class="connection-number">${conn.codecNumber}</span>
+          <span class="connection-status">${conn.online ? 'ONLINE' : 'OFFLINE'}</span>
+        </div>
+      `).join('');
+
+      // Add click handlers to connection items
+      document.querySelectorAll('.connection-item').forEach(item => {
+        item.addEventListener('click', () => {
+          const index = parseInt(item.dataset.index);
+          const id = item.dataset.id;
+          const number = item.dataset.number;
+          const avatar = item.dataset.avatar || null;
+          const conn = state.connections[index];
+
+          if (conn && conn.online) {
+            startCall(id, number, avatar);
+          }
+        });
+      });
+    }
+
+    // Handle incoming call
+    function handleIncomingCall(caller) {
+      state.incomingCall = caller;
+      elements.incomingNumber.textContent = caller.codecNumber;
+      elements.incomingOverlay.classList.add('active');
+
+      // Show caller's avatar
+      setPortraitAvatar('incomingPortrait', caller.avatar);
+
+      // Start ringing sound
+      startRinging();
+    }
+
+    // Start call
+    async function startCall(targetId, targetNumber, targetAvatar = null) {
+      state.inCall = true;
+      state.isCaller = true;
+      state.callPartner = { id: targetId, codecNumber: targetNumber, avatar: targetAvatar };
+
+      elements.remoteNumber.textContent = targetNumber;
+      elements.callStatus.textContent = 'CALLING...';
+      setPortraitAvatar('callPortrait', targetAvatar);
+      showScreen('call');
+
+      try {
+        await fetch(`${BACKEND_URL}/api/call`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callerId: state.deviceId,
+            callerNumber: state.codecNumber,
+            targetId: targetId
+          })
+        });
+        // Start ringing sound while waiting for answer
+        startRinging();
+        // WebRTC setup happens when call is accepted (via poll)
+      } catch (e) {
+        console.error('Call error:', e);
+        endCall();
+      }
+    }
+
+    // Answer call
+    async function answerCall() {
+      if (!state.incomingCall) return;
+
+      // Stop ringing and play connect sound
+      stopRinging();
+      playCodecConnect();
+
+      state.inCall = true;
+      state.isCaller = false;
+      state.callPartner = state.incomingCall;
+      elements.incomingOverlay.classList.remove('active');
+
+      elements.remoteNumber.textContent = state.callPartner.codecNumber;
+      elements.callStatus.textContent = 'ESTABLISHING...';
+      setPortraitAvatar('callPortrait', state.callPartner.avatar);
+      showScreen('call');
+
+      try {
+        await fetch(`${BACKEND_URL}/api/answer`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            callerId: state.incomingCall.id,
+            answererId: state.deviceId
+          })
+        });
+
+        // Start polling for WebRTC signals - caller will send offer
+        startSignalPolling();
+      } catch (e) {
+        console.error('Answer error:', e);
+      }
+
+      state.incomingCall = null;
+    }
+
+    // Decline call
+    async function declineCall() {
+      stopRinging();
+      playCodecEnd();
+
+      if (state.incomingCall) {
+        // Notify server that call was declined
+        try {
+          await fetch(`${BACKEND_URL}/api/answer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              callerId: state.incomingCall.id,
+              answererId: state.deviceId,
+              declined: true
+            })
+          });
+        } catch (e) {
+          console.error('Decline error:', e);
+        }
+      }
+
+      elements.incomingOverlay.classList.remove('active');
+      state.incomingCall = null;
+    }
+
+    // End call
+    function endCall(notifyPartner = true, playSound = true) {
+      // Stop ringing and play end sound
+      stopRinging();
+      if (playSound) {
+        playCodecEnd();
+      }
+
+      // Notify the other party before cleanup
+      if (notifyPartner && state.callPartner) {
+        sendSignal('call-ended', { reason: 'user-ended' });
+      }
+
+      // Cleanup WebRTC first
+      cleanupWebRTC();
+
+      state.inCall = false;
+      state.callPartner = null;
+      state.isTransmitting = false;
+
+      elements.waveform.classList.add('inactive');
+      const transmitBtn = document.getElementById('transmitBtn');
+      if (transmitBtn) {
+        transmitBtn.classList.remove('active');
+      }
+
+      // Reset portrait to default
+      setPortraitAvatar('callPortrait', null);
+
+      showScreen('menu');
+
+      fetch(`${BACKEND_URL}/api/endcall`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deviceId: state.deviceId })
+      }).catch(e => console.error('End call error:', e));
+    }
+
+    // PTT functions - enable/disable WebRTC audio track for live streaming
+    function startTransmitting() {
+      if (!state.inCall || state.isTransmitting) return;
+
+      state.isTransmitting = true;
+      elements.waveform.classList.remove('inactive');
+
+      // Enable local audio track to transmit
+      if (state.localStream) {
+        state.localStream.getAudioTracks().forEach(track => {
+          track.enabled = true;
+        });
+        console.log('Audio track enabled - transmitting');
+      }
+    }
+
+    function stopTransmitting() {
+      if (!state.isTransmitting) return;
+
+      state.isTransmitting = false;
+      elements.waveform.classList.add('inactive');
+
+      // Disable local audio track to mute
+      if (state.localStream) {
+        state.localStream.getAudioTracks().forEach(track => {
+          track.enabled = false;
+        });
+        console.log('Audio track disabled - muted');
+      }
+    }
+
+    // Metal Gear Codec Sound Effects
+    let codecRingAudio = null;
+    let audioCtx = null;
+    let audioUnlocked = false;
+
+    function getAudioContext() {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      // Resume if suspended
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    // Unlock audio on first user interaction (required by browsers)
+    function unlockAudio() {
+      if (audioUnlocked) return;
+
+      // Create and play a silent buffer to unlock audio
+      const ctx = getAudioContext();
+      const buffer = ctx.createBuffer(1, 1, 22050);
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(ctx.destination);
+      source.start(0);
+
+      // Also try to play and pause the ring audio
+      if (codecRingAudio) {
+        codecRingAudio.play().then(() => {
+          codecRingAudio.pause();
+          codecRingAudio.currentTime = 0;
+        }).catch(() => {});
+      }
+
+      audioUnlocked = true;
+      console.log('Audio unlocked');
+    }
+
+    // Setup audio unlock listeners
+    function setupAudioUnlock() {
+      const unlockEvents = ['touchstart', 'touchend', 'click', 'keydown', 'scroll'];
+      const unlockHandler = () => {
+        unlockAudio();
+        // Remove listeners after unlock
+        unlockEvents.forEach(event => {
+          document.removeEventListener(event, unlockHandler, true);
+        });
+      };
+      unlockEvents.forEach(event => {
+        document.addEventListener(event, unlockHandler, true);
+      });
+    }
+
+    // Preload the codec ring sound
+    function preloadCodecSound() {
+      codecRingAudio = new Audio('/metalgearcodec.mp3');
+      codecRingAudio.loop = true;
+      codecRingAudio.volume = 0.7;
+      // Preload
+      codecRingAudio.load();
+    }
+
+    // Play the classic codec ring sound from MP3
+    function playCodecRing() {
+      if (!codecRingAudio) {
+        preloadCodecSound();
+      }
+      codecRingAudio.currentTime = 0;
+      codecRingAudio.play().catch(e => {
+        console.log('Audio play blocked, will retry on interaction:', e);
+        // Set up a one-time retry on next interaction
+        const retryPlay = () => {
+          codecRingAudio.play().catch(() => {});
+          document.removeEventListener('touchstart', retryPlay, true);
+          document.removeEventListener('click', retryPlay, true);
+        };
+        document.addEventListener('touchstart', retryPlay, true);
+        document.addEventListener('click', retryPlay, true);
+      });
+    }
+
+    // Stop the ring sound
+    function stopCodecRing() {
+      if (codecRingAudio) {
+        codecRingAudio.pause();
+        codecRingAudio.currentTime = 0;
+      }
+    }
+
+    // Codec connection established sound - descending tone
+    function playCodecConnect() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(2200, now);
+      osc.frequency.linearRampToValueAtTime(1400, now + 0.15);
+      osc.frequency.setValueAtTime(1800, now + 0.2);
+
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.3);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.3);
+    }
+
+    // Codec end call sound - quick descending chirp
+    function playCodecEnd() {
+      const ctx = getAudioContext();
+      const now = ctx.currentTime;
+
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(1800, now);
+      osc.frequency.linearRampToValueAtTime(800, now + 0.2);
+
+      gain.gain.setValueAtTime(0.12, now);
+      gain.gain.linearRampToValueAtTime(0.01, now + 0.25);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(now);
+      osc.stop(now + 0.25);
+    }
+
+    // Ring functions
+    function startRinging() {
+      playCodecRing();
+    }
+
+    function stopRinging() {
+      stopCodecRing();
+    }
+
+    // Avatar and Camera functions
+    async function openCamera() {
+      try {
+        const overlay = document.getElementById('cameraOverlay');
+        const video = document.getElementById('cameraVideo');
+
+        // Don't force specific dimensions - let camera use native resolution
+        // This prevents black bars from aspect ratio mismatch
+        state.cameraStream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: 'user',
+            width: { ideal: 480 },
+            height: { ideal: 480 }
+          },
+          audio: false
+        });
+
+        video.srcObject = state.cameraStream;
+        overlay.classList.add('active');
+      } catch (e) {
+        console.error('Camera error:', e);
+        alert('Could not access camera');
+      }
+    }
+
+    function closeCamera() {
+      const overlay = document.getElementById('cameraOverlay');
+      const video = document.getElementById('cameraVideo');
+
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach(track => track.stop());
+        state.cameraStream = null;
+      }
+
+      video.srcObject = null;
+      overlay.classList.remove('active');
+    }
+
+    async function captureAvatar() {
+      const video = document.getElementById('cameraVideo');
+      const canvas = document.createElement('canvas');
+      canvas.width = 140;
+      canvas.height = 140;
+
+      const ctx = canvas.getContext('2d');
+      // Draw video frame to canvas (centered crop to square)
+      const vw = video.videoWidth;
+      const vh = video.videoHeight;
+      const size = Math.min(vw, vh);
+      const x = (vw - size) / 2;
+      const y = (vh - size) / 2;
+      ctx.drawImage(video, x, y, size, size, 0, 0, 140, 140);
+
+      // Convert to base64 (JPEG for smaller size)
+      const avatarData = canvas.toDataURL('image/jpeg', 0.7);
+
+      // Save to server
+      try {
+        await fetch(`${BACKEND_URL}/api/avatar`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deviceId: state.deviceId,
+            avatarData: avatarData
+          })
+        });
+
+        state.myAvatar = avatarData;
+        console.log('Avatar saved');
+      } catch (e) {
+        console.error('Save avatar error:', e);
+      }
+
+      closeCamera();
+    }
+
+    // Load my avatar from server
+    async function loadMyAvatar() {
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/avatar?deviceId=${state.deviceId}`);
+        const data = await response.json();
+        if (data.avatar) {
+          state.myAvatar = data.avatar;
+        }
+      } catch (e) {
+        console.error('Load avatar error:', e);
+      }
+    }
+
+    // Display avatar in portrait frame
+    function setPortraitAvatar(elementId, avatarData) {
+      const frame = document.getElementById(elementId);
+      if (!frame) return;
+
+      if (avatarData) {
+        frame.innerHTML = `<img class="portrait-img" src="${avatarData}" alt="avatar">`;
+      } else {
+        frame.innerHTML = '<div class="portrait-icon">?</div>';
+      }
+    }
+
+    // Suppress r1 assistant from activating while CODEC is running
+    function suppressR1Assistant() {
+      // Intercept PluginMessageHandler to prevent assistant triggers
+      if (typeof PluginMessageHandler !== 'undefined') {
+        const originalPostMessage = PluginMessageHandler.postMessage;
+        PluginMessageHandler.postMessage = function(msg) {
+          try {
+            const data = JSON.parse(msg);
+            // Block any messages that would trigger the assistant
+            if (data.useLLM || data.wantsR1Response) {
+              console.log('Blocked r1 assistant trigger');
+              return;
+            }
+          } catch (e) {}
+          return originalPostMessage.call(this, msg);
+        };
+      }
+
+      // Try to disable assistant via creation settings if available
+      if (window.creationSettings) {
+        window.creationSettings.disableAssistant = true;
+      }
+    }
+
+    // r1 Hardware event listeners
+    function setupHardwareEvents() {
+      // Suppress the r1 assistant
+      suppressR1Assistant();
+
+      // Scroll wheel navigation
+      window.addEventListener('scrollUp', (e) => {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        if (state.currentScreen === 'menu' && state.connections.length > 0) {
+          state.selectedIndex = Math.max(0, state.selectedIndex - 1);
+          renderConnections();
+        }
+      });
+
+      window.addEventListener('scrollDown', (e) => {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        if (state.currentScreen === 'menu' && state.connections.length > 0) {
+          state.selectedIndex = Math.min(state.connections.length - 1, state.selectedIndex + 1);
+          renderConnections();
+        } else if (state.incomingCall) {
+          declineCall();
+        }
+      });
+
+      // PTT button (sideClick)
+      window.addEventListener('sideClick', (e) => {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        if (state.currentScreen === 'register' && state.deviceId) {
+          connectToServer();
+          showScreen('menu');
+        } else if (state.incomingCall) {
+          answerCall();
+        } else if (state.currentScreen === 'menu' && state.connections.length > 0) {
+          const selected = state.connections[state.selectedIndex];
+          if (selected && selected.online) {
+            startCall(selected.id, selected.codecNumber, selected.avatar);
+          }
+        }
+      });
+
+      // Long press for PTT during call - intercept to prevent assistant
+      window.addEventListener('longPressStart', (e) => {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        if (state.inCall) {
+          startTransmitting();
+        }
+      });
+
+      window.addEventListener('longPressEnd', (e) => {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+        if (state.inCall) {
+          stopTransmitting();
+        }
+      });
+    }
+
+    // Keyboard fallback for testing (non-r1)
+    function setupKeyboardFallback() {
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp') {
+          window.dispatchEvent(new Event('scrollUp'));
+        } else if (e.key === 'ArrowDown') {
+          window.dispatchEvent(new Event('scrollDown'));
+        } else if (e.key === ' ' || e.key === 'Enter') {
+          if (!e.repeat) {
+            window.dispatchEvent(new Event('sideClick'));
+          }
+        }
+      });
+
+      // Space bar for PTT
+      let pttActive = false;
+      document.addEventListener('keydown', (e) => {
+        if ((e.key === ' ' || e.key === 'p') && !pttActive && state.inCall) {
+          pttActive = true;
+          window.dispatchEvent(new Event('longPressStart'));
+        }
+      });
+
+      document.addEventListener('keyup', (e) => {
+        if ((e.key === ' ' || e.key === 'p') && pttActive) {
+          pttActive = false;
+          window.dispatchEvent(new Event('longPressEnd'));
+        }
+      });
+    }
+
+    // Manual number input
+    elements.callInput.addEventListener('keyup', (e) => {
+      if (e.key === 'Enter') {
+        const number = elements.callInput.value.trim();
+        if (number.match(/^\d{4}\.\d{2}$/)) {
+          // Find device by codec number
+          const target = state.connections.find(c => c.codecNumber === number);
+          if (target) {
+            startCall(target.id, target.codecNumber);
+          } else {
+            // Try to call even if not in list
+            fetch(`${BACKEND_URL}/api/lookup?number=${number}`)
+              .then(r => r.json())
+              .then(data => {
+                if (data.deviceId) {
+                  startCall(data.deviceId, number);
+                }
+              });
+          }
+        }
+        elements.callInput.value = '';
+      }
+    });
+
+    // Register device with server
+    async function registerWithServer() {
+      try {
+        await fetch(`${BACKEND_URL}/api/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            deviceId: state.deviceId,
+            codecNumber: state.codecNumber
+          })
+        });
+      } catch (e) {
+        console.error('Registration error:', e);
+      }
+    }
+
+    // Setup click handlers for buttons
+    function setupClickHandlers() {
+      // Answer button
+      const answerBtn = document.getElementById('answerBtn');
+      if (answerBtn) {
+        answerBtn.addEventListener('click', () => {
+          answerCall();
+        });
+      }
+
+      // Decline button
+      const declineBtn = document.getElementById('declineBtn');
+      if (declineBtn) {
+        declineBtn.addEventListener('click', () => {
+          declineCall();
+        });
+      }
+
+      // End call button
+      const endCallBtn = document.getElementById('endCallBtn');
+      if (endCallBtn) {
+        endCallBtn.addEventListener('click', () => {
+          endCall();
+        });
+      }
+
+      // Transmit button - hold to talk (touch and mouse support)
+      const transmitBtn = document.getElementById('transmitBtn');
+      if (transmitBtn) {
+        // Mouse events
+        transmitBtn.addEventListener('mousedown', (e) => {
+          e.preventDefault();
+          transmitBtn.classList.add('active');
+          startTransmitting();
+        });
+        transmitBtn.addEventListener('mouseup', () => {
+          transmitBtn.classList.remove('active');
+          stopTransmitting();
+        });
+        transmitBtn.addEventListener('mouseleave', () => {
+          transmitBtn.classList.remove('active');
+          stopTransmitting();
+        });
+
+        // Touch events for mobile/r1
+        transmitBtn.addEventListener('touchstart', (e) => {
+          e.preventDefault();
+          transmitBtn.classList.add('active');
+          startTransmitting();
+        });
+        transmitBtn.addEventListener('touchend', () => {
+          transmitBtn.classList.remove('active');
+          stopTransmitting();
+        });
+        transmitBtn.addEventListener('touchcancel', () => {
+          transmitBtn.classList.remove('active');
+          stopTransmitting();
+        });
+      }
+
+      // Set avatar button
+      const setAvatarBtn = document.getElementById('setAvatarBtn');
+      if (setAvatarBtn) {
+        setAvatarBtn.addEventListener('click', () => {
+          openCamera();
+        });
+      }
+
+      // Camera capture button
+      const captureBtn = document.getElementById('captureBtn');
+      if (captureBtn) {
+        captureBtn.addEventListener('click', () => {
+          captureAvatar();
+        });
+      }
+
+      // Camera cancel button
+      const cancelCameraBtn = document.getElementById('cancelCameraBtn');
+      if (cancelCameraBtn) {
+        cancelCameraBtn.addEventListener('click', () => {
+          closeCamera();
+        });
+      }
+    }
+
+    // Initialize
+    async function init() {
+      showScreen('register');
+      setupHardwareEvents();
+      setupKeyboardFallback();
+      setupClickHandlers();
+
+      // Setup audio unlock for browser autoplay policy
+      setupAudioUnlock();
+
+      // Preload codec sound
+      preloadCodecSound();
+
+      await initDevice();
+
+      // Load avatar after device is initialized
+      if (state.deviceId) {
+        await loadMyAvatar();
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
