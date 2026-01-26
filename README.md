@@ -5,6 +5,10 @@ A real-time voice communication app inspired by the iconic CODEC system from Met
 ![CODEC Screenshot](https://img.shields.io/badge/Platform-rabbit%20r1-00ff41?style=for-the-badge)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
+<p align="center">
+  <img src="screenshot.png" alt="CODEC App Screenshot" width="280">
+</p>
+
 ## Features
 
 - **Real-time Voice Chat** - WebRTC-powered live audio streaming between devices
